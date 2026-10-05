@@ -14,6 +14,7 @@ está correto.
 
 Como rodar:  python cobras_escadas.py      (precisa do numpy)
 """
+
 import math
 import random
 
@@ -23,11 +24,11 @@ import numpy as np
 # 1. TABULEIRO (lido da figura)
 # ---------------------------------------------------------------------------
 ULTIMA = 36
-ESCADAS = {3: 16, 5: 7, 15: 25, 18: 20, 21: 32}   # base -> topo
-COBRAS = {12: 2, 14: 11, 17: 4, 31: 19, 35: 22}   # cabeça -> rabo
+ESCADAS = {3: 16, 5: 7, 15: 25, 18: 20, 21: 32}  # base -> topo
+COBRAS = {12: 2, 14: 11, 17: 4, 31: 19, 35: 22}  # cabeça -> rabo
 
 N_JOGOS = 10_000
-SEMENTE = 2026   # semente fixa: quem rodar de novo obtém os mesmos números
+SEMENTE = 2026  # semente fixa: quem rodar de novo obtém os mesmos números
 
 
 # ---------------------------------------------------------------------------
@@ -40,22 +41,22 @@ def jogar_partida(rng, inicio_j2=1, p_escada=1.0, j2_imune=False):
     p_escada  : chance de a escada funcionar            (pergunta 3)
     j2_imune  : jogador 2 ignora a primeira cobra       (pergunta 5)
     """
-    casa = [1, inicio_j2]            # posição de cada jogador
-    imune = [False, j2_imune]        # quem ainda tem imunidade
+    casa = [1, inicio_j2]  # posição de cada jogador
+    imune = [False, j2_imune]  # quem ainda tem imunidade
     lances = 0
     cobras = 0
-    vez = 0                          # 0 = jogador 1 (começa), 1 = jogador 2
+    vez = 0  # 0 = jogador 1 (começa), 1 = jogador 2
 
     while True:
         lances += 1
-        nova = min(casa[vez] + rng.randint(1, 6), ULTIMA)   # passar da última = chegar
+        nova = min(casa[vez] + rng.randint(1, 6), ULTIMA)  # passar da última = chegar
 
         if nova in ESCADAS:
-            if rng.random() < p_escada:          # se p_escada = 1 sempre sobe
+            if rng.random() < p_escada:  # se p_escada = 1 sempre sobe
                 nova = ESCADAS[nova]
         elif nova in COBRAS:
             if imune[vez]:
-                imune[vez] = False               # gasta a imunidade, fica na casa
+                imune[vez] = False  # gasta a imunidade, fica na casa
             else:
                 nova = COBRAS[nova]
                 cobras += 1
@@ -63,15 +64,15 @@ def jogar_partida(rng, inicio_j2=1, p_escada=1.0, j2_imune=False):
         casa[vez] = nova
         if nova == ULTIMA:
             return vez, lances, cobras
-        vez = 1 - vez                            # passa a vez
+        vez = 1 - vez  # passa a vez
 
 
 def simular(semente, n=N_JOGOS, **regras):
     """Joga n partidas e devolve três vetores: vencedores, lances e cobras."""
     rng = random.Random(semente)
     resultados = [jogar_partida(rng, **regras) for _ in range(n)]
-    v, l, c = zip(*resultados)
-    return np.array(v), np.array(l), np.array(c)
+    vencedores, lances, cobras = zip(*resultados, strict=True)
+    return np.array(vencedores), np.array(lances), np.array(cobras)
 
 
 def media_ic(x):
@@ -90,15 +91,17 @@ def media_ic(x):
 #   f[n] = P(termina exatamente no lance n+1)
 #   S[n] = P(ainda não terminou depois de n lances)
 #   s[n] = P(cair numa cobra no lance n+1)
-NMAX = 1000    # a chance de passar de 1000 lances é ~1e-90: pode ignorar
+NMAX = 1000  # a chance de passar de 1000 lances é ~1e-90: pode ignorar
 
 
 def distribuicao(inicio=1, p_escada=1.0, imune=False):
     K = 2 * (ULTIMA + 1)
-    idx = lambda casa, usou: casa + (ULTIMA + 1) * usou
 
-    P = np.zeros((K, K))     # matriz de transição
-    h = np.zeros(K)          # chance de cair numa cobra a partir de cada estado
+    def idx(casa, usou):
+        return casa + (ULTIMA + 1) * usou
+
+    P = np.zeros((K, K))  # matriz de transição
+    h = np.zeros(K)  # chance de cair numa cobra a partir de cada estado
     for usou in (0, 1):
         for i in range(1, ULTIMA):
             for d in range(1, 7):
@@ -106,7 +109,7 @@ def distribuicao(inicio=1, p_escada=1.0, imune=False):
                 de = idx(i, usou)
                 if j in COBRAS:
                     if usou == 0:
-                        P[de, idx(j, 1)] += 1 / 6            # imunidade gasta
+                        P[de, idx(j, 1)] += 1 / 6  # imunidade gasta
                     else:
                         P[de, idx(COBRAS[j], 1)] += 1 / 6
                         h[de] += 1 / 6
@@ -115,7 +118,7 @@ def distribuicao(inicio=1, p_escada=1.0, imune=False):
                     P[de, idx(j, usou)] += (1 - p_escada) / 6
                 else:
                     P[de, idx(j, usou)] += 1 / 6
-        P[idx(ULTIMA, usou), idx(ULTIMA, usou)] = 1          # fim: estado absorvente
+        P[idx(ULTIMA, usou), idx(ULTIMA, usou)] = 1  # fim: estado absorvente
 
     v = np.zeros(K)
     v[idx(inicio, 0 if imune else 1)] = 1
@@ -148,8 +151,7 @@ def exato_lances(a, b):
     """Lances esperados na partida. Se J1 vence no seu lance n, foram 2n-1
     lances no total; se J2 vence no seu lance n, foram 2n."""
     n = np.arange(1, NMAX + 1)
-    return float(np.sum(a[0] * b[1][:-1] * (2 * n - 1)) +
-                 np.sum(b[0] * a[1][1:] * 2 * n))
+    return float(np.sum(a[0] * b[1][:-1] * (2 * n - 1)) + np.sum(b[0] * a[1][1:] * 2 * n))
 
 
 # ---------------------------------------------------------------------------
@@ -158,14 +160,16 @@ def exato_lances(a, b):
 def confere(nome, valor, erro, exato):
     """Mostra o resultado da simulação ao lado do valor exato."""
     z = (valor - exato) / (erro / 1.96)
-    print(f"{nome:<36} simulado {valor:7.4f} +- {erro:.4f}   exato {exato:7.4f}"
-          f"   {'ok' if abs(z) < 3.5 else 'DIVERGE'}")
+    print(
+        f"{nome:<36} simulado {valor:7.4f} +- {erro:.4f}   exato {exato:7.4f}"
+        f"   {'ok' if abs(z) < 3.5 else 'DIVERGE'}"
+    )
     return abs(z) < 3.5
 
 
 def main():
     tudo_ok = True
-    base = distribuicao()    # jogador "normal", usado nas perguntas 1, 2 e 4
+    base = distribuicao()  # jogador "normal", usado nas perguntas 1, 2 e 4
 
     # Pergunta 1: probabilidade de o jogador que começa vencer
     venc, lances, cobras = simular(SEMENTE + 1)
@@ -204,10 +208,12 @@ def main():
         refinado[c] = (venc == 0).mean()
     melhor = min(refinado, key=lambda c: abs(refinado[c] - 0.5))
     melhor_exato = min(exatos, key=lambda c: abs(exatos[c] - 0.5))
-    print(f"P4  melhor casa para o jogador 2:    simulado {melhor}"
-          f" (P1 vence {refinado[melhor]:.4f})   exato {melhor_exato}"
-          f" (P1 vence {exatos[melhor_exato]:.4f})   "
-          f"{'ok' if melhor == melhor_exato else 'DIVERGE'}")
+    print(
+        f"P4  melhor casa para o jogador 2:    simulado {melhor}"
+        f" (P1 vence {refinado[melhor]:.4f})   exato {melhor_exato}"
+        f" (P1 vence {exatos[melhor_exato]:.4f})   "
+        f"{'ok' if melhor == melhor_exato else 'DIVERGE'}"
+    )
     tudo_ok &= melhor == melhor_exato
 
     # Pergunta 5: jogador 2 imune à primeira cobra

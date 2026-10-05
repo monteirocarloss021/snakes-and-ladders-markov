@@ -13,6 +13,7 @@ Uso:
     python3 cobras_escadas.py --jogos 100000 --semente 7 --refino 200000
 Dependência: numpy (só para a validação exata).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -42,7 +43,7 @@ def validar_tabuleiro() -> None:
 @dataclass(frozen=True)
 class Regras:
     inicio_j2: int = 1
-    p_escada: float = 1.0       # Q3: 0.5
+    p_escada: float = 1.0  # Q3: 0.5
     imunidade_j2: bool = False  # Q5
 
 
@@ -66,7 +67,7 @@ class Jogador:
                 self.escadas += 1
         elif d in COBRAS:
             if self.imune:
-                self.imune = False          # imunidade gasta; fica na cabeça
+                self.imune = False  # imunidade gasta; fica na cabeça
             else:
                 d = COBRAS[d]
                 self.cobras += 1
@@ -106,7 +107,7 @@ class IC:
 
 
 def wilson(k: int, n: int) -> IC:
-    p, z2 = k / n, Z95 ** 2
+    p, z2 = k / n, Z95**2
     den = 1 + z2 / n
     c = (p + z2 / (2 * n)) / den
     m = Z95 * math.sqrt(p * (1 - p) / n + z2 / (4 * n * n)) / den
@@ -138,18 +139,26 @@ def simular(regras: Regras, n: int, semente: int) -> Resumo:
     ps = [jogar_partida(regras, rng) for _ in range(n)]
     c1 = [p.cobras_j1 for p in ps]
     c2 = [p.cobras_j2 for p in ps]
-    return Resumo(n, sum(p.vencedor == 1 for p in ps),
-                  ic_media([p.lances for p in ps]),
-                  ic_media([a + b for a, b in zip(c1, c2)]),
-                  ic_media(c1), ic_media(c2))
+    return Resumo(
+        n,
+        sum(p.vencedor == 1 for p in ps),
+        ic_media([p.lances for p in ps]),
+        ic_media([a + b for a, b in zip(c1, c2, strict=True)]),
+        ic_media(c1),
+        ic_media(c2),
+    )
 
 
 # =================================================== solução exata (Markov)
 # Estado = casa + 37*gasta (gasta=1: sem imunidade). Para um jogador isolado:
 #   f[n] = P(T = n+1),  S[n] = P(T > n),  s[n] = P(cobra no lance n+1).
-NMAX = 4000                  # cauda ~ 0.81^n -> truncamento desprezível
+NMAX = 4000  # cauda ~ 0.81^n -> truncamento desprezível
 K = 2 * (ULTIMA + 1)
-idx = lambda c, gasta: c + (ULTIMA + 1) * gasta
+
+
+def idx(c: int, gasta: int) -> int:
+    """Índice do estado (casa, imunidade gasta?) no vetor de estados."""
+    return c + (ULTIMA + 1) * gasta
 
 
 def matriz(p_escada: float) -> tuple[np.ndarray, np.ndarray]:
@@ -161,7 +170,7 @@ def matriz(p_escada: float) -> tuple[np.ndarray, np.ndarray]:
                 j, w = min(i + d, ULTIMA), 1 / 6
                 if j in COBRAS:
                     if g == 0:
-                        P[a, idx(j, 1)] += w                  # usa imunidade
+                        P[a, idx(j, 1)] += w  # usa imunidade
                     else:
                         P[a, idx(COBRAS[j], 1)] += w
                         h[a] += w
@@ -231,16 +240,16 @@ def testes() -> None:
         venceu = j.jogar(DadoRoteirizado([d], sorteios), p)
         return j.casa, venceu, j.cobras, j.imune
 
-    assert lance(1, 2)[0] == 16                          # escada 3 -> 16
-    assert lance(1, 4)[0] == 7                           # escada 5 -> 7
-    assert lance(10, 4)[0] == 11                         # cobra 14 -> 11
-    assert lance(30, 5)[:3] == (22, False, 1)            # cobra 35 -> 22, conta 1
-    assert lance(33, 6)[:2] == (36, True)                # passar de 36 vence
-    assert lance(30, 6)[:2] == (36, True)                # cair exato em 36 vence
-    assert lance(1, 2, .5, sorteios=[.7])[0] == 3        # escada falha: fica na base
-    assert lance(1, 2, .5, sorteios=[.2])[0] == 16       # escada funciona
-    assert lance(10, 2, imune=True) == (12, False, 0, False)   # imunidade usada
-    assert lance(10, 2)[0] == 2                          # cobra 12 -> 2
+    assert lance(1, 2)[0] == 16  # escada 3 -> 16
+    assert lance(1, 4)[0] == 7  # escada 5 -> 7
+    assert lance(10, 4)[0] == 11  # cobra 14 -> 11
+    assert lance(30, 5)[:3] == (22, False, 1)  # cobra 35 -> 22, conta 1
+    assert lance(33, 6)[:2] == (36, True)  # passar de 36 vence
+    assert lance(30, 6)[:2] == (36, True)  # cair exato em 36 vence
+    assert lance(1, 2, 0.5, sorteios=[0.7])[0] == 3  # escada falha: fica na base
+    assert lance(1, 2, 0.5, sorteios=[0.2])[0] == 16  # escada funciona
+    assert lance(10, 2, imune=True) == (12, False, 0, False)  # imunidade usada
+    assert lance(10, 2)[0] == 2  # cobra 12 -> 2
     # J1 1->3->16 | J2 1->2 | J1 16->21->32 | J2 2->3->16 | J1 32->36
     p = jogar_partida(Regras(), DadoRoteirizado([2, 1, 5, 1, 4]))
     assert (p.vencedor, p.lances) == (1, 5), p
@@ -252,8 +261,9 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     ap.add_argument("--jogos", type=int, default=10_000)
     ap.add_argument("--semente", type=int, default=2026)
-    ap.add_argument("--refino", type=int, default=200_000,
-                    help="jogos por finalista na etapa 2 da Q4")
+    ap.add_argument(
+        "--refino", type=int, default=200_000, help="jogos por finalista na etapa 2 da Q4"
+    )
     a = ap.parse_args()
     N, SEED = a.jogos, a.semente
 
@@ -271,8 +281,10 @@ def main() -> int:
         z = (ic.est - ex) / ic.se
         ok = abs(z) < 3.5
         tudo_ok &= ok
-        print(f"{nome:<34} {ic.est:8.{dec}f}  [{ic.inf:.{dec}f}, {ic.sup:.{dec}f}]"
-              f"   exato {ex:8.{dec}f}  z={z:+5.2f} {'ok' if ok else 'DIVERGE'}")
+        print(
+            f"{nome:<34} {ic.est:8.{dec}f}  [{ic.inf:.{dec}f}, {ic.sup:.{dec}f}]"
+            f"   exato {ex:8.{dec}f}  z={z:+5.2f} {'ok' if ok else 'DIVERGE'}"
+        )
 
     # Q1 / Q2
     base = simular(Regras(), N, SEED + 1)
@@ -281,8 +293,8 @@ def main() -> int:
     print(f"     J1 {base.cobras_j1.est:.3f} | J2 {base.cobras_j2.est:.3f}")
 
     # Q3
-    J3 = jogador_exato(p_escada=.5)
-    q3 = simular(Regras(p_escada=.5), N, SEED + 3)
+    J3 = jogador_exato(p_escada=0.5)
+    q3 = simular(Regras(p_escada=0.5), N, SEED + 3)
     linha("Q3 lances/partida (escada 50%)", q3.lances, exato_lances(J3, J3), 2)
     print(f"     ref. escada 100%: {base.lances.est:.2f} (exato {exato_lances(J, J):.2f})")
 
@@ -295,27 +307,30 @@ def main() -> int:
     print("\nQ4 P(J1 vence) x casa inicial do J2  (etapa 1: triagem)")
     finalistas, exatos = [], {}
     for c in range(1, ULTIMA):
-        if c in GATILHOS:                  # peça nunca repousa em gatilho
+        if c in GATILHOS:  # peça nunca repousa em gatilho
             continue
         ic = simular(Regras(inicio_j2=c), N, SEED + 4).p_j1
         exatos[c] = exato_p_j1(J, jogador_exato(c))
-        fin = abs(ic.est - .5) < 3 * ic.se
+        fin = abs(ic.est - 0.5) < 3 * ic.se
         if fin:
             finalistas.append(c)
         if c <= 13:
-            print(f"   casa {c:2d}: {ic.est:.4f} [{ic.inf:.4f}, {ic.sup:.4f}]"
-                  f"  exato {exatos[c]:.4f} {'<- finalista' if fin else ''}")
+            print(
+                f"   casa {c:2d}: {ic.est:.4f} [{ic.inf:.4f}, {ic.sup:.4f}]"
+                f"  exato {exatos[c]:.4f} {'<- finalista' if fin else ''}"
+            )
     print(f"   etapa 2: {len(finalistas)} finalistas x {a.refino} jogos")
     refinado = {}
     for c in finalistas:
         ic = simular(Regras(inicio_j2=c), a.refino, SEED + 40).p_j1
         refinado[c] = ic.est
         print(f"   casa {c:2d}: {ic.est:.4f} [{ic.inf:.4f}, {ic.sup:.4f}]  exato {exatos[c]:.4f}")
-    melhor_mc = min(refinado, key=lambda c: abs(refinado[c] - .5))
-    melhor_ex = min(exatos, key=lambda c: abs(exatos[c] - .5))
+    melhor_mc = min(refinado, key=lambda c: abs(refinado[c] - 0.5))
+    melhor_ex = min(exatos, key=lambda c: abs(exatos[c] - 0.5))
     q4ok = melhor_mc == melhor_ex
     tudo_ok &= q4ok
-    print(f"   melhor casa: MC = {melhor_mc} | exato = {melhor_ex}  {'ok' if q4ok else 'DIVERGE'}\n")
+    status = "ok" if q4ok else "DIVERGE"
+    print(f"   melhor casa: MC = {melhor_mc} | exato = {melhor_ex}  {status}\n")
 
     # Q5
     q5 = simular(Regras(imunidade_j2=True), N, SEED + 5)
