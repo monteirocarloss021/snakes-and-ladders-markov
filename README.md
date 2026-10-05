@@ -102,17 +102,6 @@ scripts/
   gerar_figuras.py           gera as figuras deste README
 ```
 
-## Como rodar
-
-```bash
-pip install -r requirements.txt
-
-python python/cobras_escadas.py                          # 10.000 jogos, semente 2026
-python python/cobras_escadas.py --jogos 100000 --semente 7
-
-g++ -std=c++17 -O2 -o cobras cpp/cobras_escadas.cpp && ./cobras
-```
-
 Saída (Python):
 
 ```
@@ -135,6 +124,5 @@ Validação MC x exato: TODAS OK
 ## Créditos
 
 Por **Carlos Alberto Monteiro da Cunha** ([@monteirocarloss021](https://github.com/monteirocarloss021)), Engenharia Civil-Aeronáutica · ITA.
-Código desenvolvido com auxílio do assistente de IA **Claude** (Anthropic).
 
 Licença [MIT](LICENSE).
