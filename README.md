@@ -27,11 +27,11 @@ As perguntas eram:
 
 | Pergunta | Simulação (10.000 partidas) | Valor exato |
 |:-:|:-:|:-:|
-| 1 | 0,531 ± 0,010 | 0,5255 |
-| 2 | 3,09 ± 0,05 | 3,094 |
+| 1 | 0,519 ± 0,010 | 0,5255 |
+| 2 | 3,07 ± 0,05 | 3,094 |
 | 3 | 22,4 ± 0,2 | 22,49 |
 | 4 | casa 7 | casa 7 |
-| 5 | 0,383 ± 0,010 | 0,3864 |
+| 5 | 0,385 ± 0,010 | 0,3864 |
 
 Os valores com ± são intervalos de confiança de 95%.
 
@@ -48,7 +48,7 @@ Hipóteses que adotei onde o enunciado deixava dúvida:
 
 Escrevi uma função que joga uma partida inteira e outra que repete isso 10.000 vezes. As variações das perguntas 3, 4 e 5 entram como parâmetros da mesma função, então a lógica do jogo fica escrita uma vez só. A semente aleatória é fixa, para os resultados serem reproduzíveis.
 
-Para as probabilidades usei o intervalo de Wilson, e para as médias, o intervalo usual com o desvio padrão amostral $s$:
+Para cada resposta calculei um intervalo de confiança de 95% pela aproximação normal, com o desvio padrão amostral $s$:
 
 $$
 \bar{x} \pm 1{,}96 \, \frac{s}{\sqrt{n}}
@@ -92,11 +92,11 @@ $$
 E[\text{lances}] = \sum_{n \geq 1} \left( (2n-1) \, f^{(1)}_n \, S^{(2)}_{n-1} + 2n \, f^{(2)}_n \, S^{(1)}_n \right)
 $$
 
-As somas foram feitas até $n = 4000$. A probabilidade de uma partida durar tanto é desprezível.
+As somas foram feitas até $n = 1000$. A chance de um jogador passar de 1000 lances é da ordem de $10^{-90}$, então dá para ignorar.
 
 ### 3. Conferência
 
-O programa compara cada resultado da simulação com o valor exato e só termina sem erro se a diferença for pequena (menos de 3,5 erros padrão). Também escrevi testes que conferem as regras do jogo com sequências de dados fixas, por exemplo "tirando 2 na casa 1, o jogador tem que parar na 16".
+O programa compara cada resultado da simulação com o valor exato e marca `ok` quando a diferença é menor que 3,5 erros padrão. Também escrevi testes que jogam partidas inteiras com dados fixos, em que eu sei de antemão quem vence, quantos lances a partida dura e em quantas cobras se cai.
 
 ## Algumas observações
 
@@ -122,38 +122,35 @@ $$
 
 ```bash
 pip install -r requirements.txt
-python python/cobras_escadas.py
+python cobras_escadas.py
 ```
 
-Também dá para mudar o número de partidas e a semente:
+A saída fica assim:
 
-```bash
-python python/cobras_escadas.py --jogos 100000 --semente 7
 ```
+P1  P(jogador 1 vence)               simulado  0.5189 +- 0.0098   exato  0.5255   ok
+P2  cobras por jogo                  simulado  3.0711 +- 0.0510   exato  3.0937   ok
+P3  lances por jogo (escada 50%)     simulado 22.3876 +- 0.1756   exato 22.4933   ok
+P4  melhor casa para o jogador 2:    simulado 7 (P1 vence 0.4972)   exato 7 (P1 vence 0.4968)   ok
+P5  P(jogador 1 vence), J2 imune     simulado  0.3848 +- 0.0095   exato  0.3864   ok
 
-Fiz uma versão em C++, que roda bem mais rápido:
-
-```bash
-g++ -std=c++17 -O2 -o cobras cpp/cobras_escadas.cpp
-./cobras
+Simulação e cálculo exato concordam: SIM
 ```
 
 Para rodar os testes:
 
 ```bash
-pip install pytest
 pytest
 ```
 
 ## Arquivos
 
-| Pasta | Conteúdo |
+| Arquivo | Conteúdo |
 |---|---|
-| `python/` | `cobras_escadas.py` (solução completa) e `cobras_escadas_simples.py` (versão mais curta e comentada) |
-| `cpp/` | a mesma solução em C++ |
+| `cobras_escadas.py` | toda a solução: simulação, cadeia de Markov e respostas |
 | `tests/` | testes automáticos |
-| `notebooks/` | notebook com a análise e os gráficos |
-| `scripts/` | script que gera as figuras |
+| `scripts/gerar_figuras.py` | script que gera as figuras deste README |
+| `figures/` | figuras |
 
 ---
 

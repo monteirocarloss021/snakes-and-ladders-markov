@@ -4,7 +4,6 @@ Uso:  python scripts/gerar_figuras.py
 """
 
 import pathlib
-import random
 import sys
 
 import matplotlib.pyplot as plt
@@ -12,11 +11,12 @@ import numpy as np
 from matplotlib.colors import LinearSegmentedColormap
 
 RAIZ = pathlib.Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(RAIZ / "python"))
+sys.path.insert(0, str(RAIZ))
 import cobras_escadas as ce  # noqa: E402
 
 OUT = RAIZ / "figures"
 OUT.mkdir(exist_ok=True)
+GATILHOS = set(ce.ESCADAS) | set(ce.COBRAS)
 
 AZUL, LARANJA, VERDE = "#2a78d6", "#eb6834", "#1baf7a"
 TXT, TXT2, GRADE, FUNDO = "#0b0b0b", "#52514e", "#e4e3df", "#fcfcfb"
@@ -52,12 +52,8 @@ def coord(casa):
 
 
 def lances_esperados():
-    """E[lances até terminar] partindo de cada casa: (I - Q)^-1 · 1."""
-    P, _ = ce.matriz(1.0)
-    estados = [ce.idx(c, 1) for c in range(1, ce.ULTIMA)]
-    Q = P[np.ix_(estados, estados)]
-    E = np.linalg.solve(np.eye(len(estados)) - Q, np.ones(len(estados)))
-    return {c: E[c - 1] for c in range(1, ce.ULTIMA)} | {ce.ULTIMA: 0.0}
+    """E[lances até terminar] partindo de cada casa: soma de P(T > n)."""
+    return {c: float(ce.distribuicao(inicio=c)[1][:-1].sum()) for c in range(1, ce.ULTIMA + 1)}
 
 
 # ----------------------------------------------------------- 1. tabuleiro
@@ -76,7 +72,7 @@ def fig_tabuleiro():
         s.set_visible(False)
     for c in range(1, ce.ULTIMA + 1):
         x, y = coord(c)
-        gat = c in ce.ESCADAS or c in ce.COBRAS
+        gat = c in GATILHOS
         cor = "#f1f0ec" if gat else cmap(E[c] / vmax)
         ax.add_patch(plt.Rectangle((x - 0.5, y - 0.5), 1, 1, fc=cor, ec="white", lw=2))
         ax.text(x - 0.42, y + 0.4, c, fontsize=8, color=TXT2, va="top")
@@ -118,14 +114,15 @@ def fig_tabuleiro():
 
 # ------------------------------------------------- 2. equilíbrio (Q4)
 def fig_q4():
-    J = ce.jogador_exato()
-    casas = [c for c in range(1, ce.ULTIMA) if c not in ce.GATILHOS]
-    ex = [ce.exato_p_j1(J, ce.jogador_exato(c)) for c in casas]
+    base = ce.distribuicao()
+    casas = [c for c in range(1, ce.ULTIMA) if c not in GATILHOS]
+    ex = [ce.exato_p_j1(base, ce.distribuicao(inicio=c)) for c in casas]
     mc, err = [], []
     for c in casas:
-        r = ce.simular(ce.Regras(inicio_j2=c), 10_000, 2030).p_j1
-        mc.append(r.est)
-        err.append(r.est - r.inf)
+        venc, _, _ = ce.simular(2030, inicio_j2=c)
+        m, e = ce.media_ic(venc == 0)
+        mc.append(m)
+        err.append(e)
     melhor = casas[int(np.argmin(np.abs(np.array(ex) - 0.5)))]
 
     fig, ax = plt.subplots(figsize=(8, 3.8))
@@ -166,10 +163,11 @@ def fig_duracao():
     n = np.arange(1, ce.NMAX + 1)
     curvas = {}
     for nome, p in (("escadas normais", 1.0), ("escadas a 50% (Q3)", 0.5)):
-        J = ce.jogador_exato(p_escada=p)
+        J = ce.distribuicao(p_escada=p)
+        f, S, _ = J
         pmf = np.zeros(2 * ce.NMAX + 1)
-        np.add.at(pmf, 2 * n - 1, J.f * J.S[:-1])
-        np.add.at(pmf, 2 * n, J.f * J.S[1:])
+        np.add.at(pmf, 2 * n - 1, f * S[:-1])
+        np.add.at(pmf, 2 * n, f * S[1:])
         curvas[nome] = (pmf, ce.exato_lances(J, J))
     fig, ax = plt.subplots(figsize=(8, 3.6))
     for (nome, (pmf, media)), cor in zip(curvas.items(), (AZUL, LARANJA), strict=True):
@@ -189,9 +187,10 @@ def fig_duracao():
 
 # --------------------------------------------- 4. convergência do Monte Carlo
 def fig_convergencia():
-    exato = ce.exato_p_j1(ce.jogador_exato(), ce.jogador_exato())
-    rng = random.Random(7)
-    v = np.array([ce.jogar_partida(ce.Regras(), rng).vencedor == 1 for _ in range(100_000)])
+    base = ce.distribuicao()
+    exato = ce.exato_p_j1(base, base)
+    venc, _, _ = ce.simular(7, n=100_000)
+    v = venc == 0
     k = np.arange(1, v.size + 1)
     p = v.cumsum() / k
     e = 1.96 * np.sqrt(p * (1 - p) / k)

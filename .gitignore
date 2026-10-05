@@ -1,15 +1,4 @@
 __pycache__/
 *.pyc
-.ipynb_checkpoints/
-cobras
-cobras.exe
-*.o
-.vscode/
-
-# build / ferramentas
-cobras-san
 .pytest_cache/
-.ruff_cache/
-*.egg-info/
-build/
-dist/
+.vscode/

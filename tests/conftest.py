@@ -1,9 +1,4 @@
-import pytest
+import sys
+from pathlib import Path
 
-import cobras_escadas as ce
-
-
-@pytest.fixture(scope="session")
-def base():
-    """Distribuição exata de um jogador nas regras originais."""
-    return ce.jogador_exato()
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
