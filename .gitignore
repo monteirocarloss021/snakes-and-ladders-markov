@@ -5,3 +5,11 @@ cobras
 cobras.exe
 *.o
 .vscode/
+
+# build / ferramentas
+cobras-san
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
